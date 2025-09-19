@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Clock, MapPin, BookOpen, Users, Save, CheckCircle, XCircle, Clock3, AlertCircle } from "lucide-react"
 import { useRouter } from "next/navigation"
+import { QRAttendanceDisplay } from "./qr-attendance-display"
 
 interface Student {
   id: string
@@ -218,139 +219,155 @@ export function AttendanceInterface({ classData, userId }: AttendanceInterfacePr
 
   if (isLoading) {
     return (
-      <Card className="bg-white/90 backdrop-blur-sm">
-        <CardContent className="p-8">
-          <div className="text-center">Loading class information...</div>
-        </CardContent>
-      </Card>
+      <div className="space-y-6">
+        <QRAttendanceDisplay
+          classId={classData.id}
+          className={`${classData.courses.course_code} - ${classData.courses.course_name}`}
+          classTime={`${classData.start_time} - ${classData.end_time}`}
+        />
+        <Card className="bg-white/90 backdrop-blur-sm">
+          <CardContent className="p-8">
+            <div className="text-center">Loading class information...</div>
+          </CardContent>
+        </Card>
+      </div>
     )
   }
 
   return (
-    <Card className="bg-white/90 backdrop-blur-sm">
-      <CardHeader>
-        <div className="flex items-start justify-between">
-          <div>
-            <CardTitle className="flex items-center gap-2 text-xl">
-              <BookOpen className="h-5 w-5 text-orange-600" />
-              {classData.courses.course_code} - {classData.courses.course_name}
-            </CardTitle>
-            <CardDescription className="mt-2">
-              <div className="flex flex-wrap items-center gap-4 text-sm">
-                <span className="flex items-center gap-1">
-                  <Clock className="h-4 w-4" />
-                  {classData.start_time} - {classData.end_time}
-                </span>
-                {classData.location && (
+    <div className="space-y-6">
+      {/* QR Attendance Display */}
+      <QRAttendanceDisplay
+        classId={classData.id}
+        className={`${classData.courses.course_code} - ${classData.courses.course_name}`}
+        classTime={`${classData.start_time} - ${classData.end_time}`}
+      />
+
+      <Card className="bg-white/90 backdrop-blur-sm">
+        <CardHeader>
+          <div className="flex items-start justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2 text-xl">
+                <BookOpen className="h-5 w-5 text-orange-600" />
+                {classData.courses.course_code} - {classData.courses.course_name}
+              </CardTitle>
+              <CardDescription className="mt-2">
+                <div className="flex flex-wrap items-center gap-4 text-sm">
                   <span className="flex items-center gap-1">
-                    <MapPin className="h-4 w-4" />
-                    {classData.location}
+                    <Clock className="h-4 w-4" />
+                    {classData.start_time} - {classData.end_time}
                   </span>
-                )}
-                <Badge variant="outline">{classData.courses.department}</Badge>
-              </div>
-              {classData.topic && (
-                <div className="mt-2 text-gray-600">
-                  <strong>Topic:</strong> {classData.topic}
+                  {classData.location && (
+                    <span className="flex items-center gap-1">
+                      <MapPin className="h-4 w-4" />
+                      {classData.location}
+                    </span>
+                  )}
+                  <Badge variant="outline">{classData.courses.department}</Badge>
                 </div>
-              )}
-            </CardDescription>
-          </div>
-          <div className="flex items-center gap-2">
-            <Badge variant="outline" className="flex items-center gap-1">
-              <Users className="h-3 w-3" />
-              {students.length} students
-            </Badge>
-            {hasExistingRecords && (
-              <Badge variant="secondary" className="text-green-700 bg-green-100">
-                Previously Saved
+                {classData.topic && (
+                  <div className="mt-2 text-gray-600">
+                    <strong>Topic:</strong> {classData.topic}
+                  </div>
+                )}
+              </CardDescription>
+            </div>
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className="flex items-center gap-1">
+                <Users className="h-3 w-3" />
+                {students.length} students
               </Badge>
+              {hasExistingRecords && (
+                <Badge variant="secondary" className="text-green-700 bg-green-100">
+                  Previously Saved
+                </Badge>
+              )}
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {students.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">No students enrolled in this course.</div>
+            ) : (
+              <>
+                {/* Students List */}
+                <div className="space-y-3">
+                  {students.map((student) => (
+                    <div key={student.id} className="border rounded-lg p-4 bg-white/50">
+                      <div className="flex items-center justify-between mb-3">
+                        <div>
+                          <h4 className="font-medium">
+                            {student.first_name} {student.last_name}
+                          </h4>
+                          <p className="text-sm text-gray-600">
+                            {student.student_id} • {student.email}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {getStatusIcon(attendance[student.id]?.status || "present")}
+                          <Badge className={getStatusColor(attendance[student.id]?.status || "present")}>
+                            {attendance[student.id]?.status || "present"}
+                          </Badge>
+                        </div>
+                      </div>
+
+                      {/* Status Buttons */}
+                      <div className="flex gap-2 mb-3">
+                        {["present", "absent", "late", "excused"].map((status) => (
+                          <Button
+                            key={status}
+                            variant={attendance[student.id]?.status === status ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => updateAttendance(student.id, status as any)}
+                            className={
+                              attendance[student.id]?.status === status
+                                ? status === "present"
+                                  ? "bg-green-600 hover:bg-green-700"
+                                  : status === "absent"
+                                    ? "bg-red-600 hover:bg-red-700"
+                                    : status === "late"
+                                      ? "bg-yellow-600 hover:bg-yellow-700"
+                                      : "bg-blue-600 hover:bg-blue-700"
+                                : ""
+                            }
+                          >
+                            {getStatusIcon(status)}
+                            <span className="ml-1 capitalize">{status}</span>
+                          </Button>
+                        ))}
+                      </div>
+
+                      {/* Notes */}
+                      <div>
+                        <Label htmlFor={`notes-${student.id}`} className="text-xs text-gray-600">
+                          Notes (optional)
+                        </Label>
+                        <Textarea
+                          id={`notes-${student.id}`}
+                          placeholder="Add any notes about this student's attendance..."
+                          value={notes[student.id] || ""}
+                          onChange={(e) => updateNotes(student.id, e.target.value)}
+                          className="mt-1 text-sm"
+                          rows={2}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Save Button */}
+                <div className="flex justify-end pt-4 border-t">
+                  <Button onClick={saveAttendance} disabled={isSaving} className="bg-orange-600 hover:bg-orange-700">
+                    <Save className="mr-2 h-4 w-4" />
+                    {isSaving ? "Saving..." : hasExistingRecords ? "Update Attendance" : "Save Attendance"}
+                  </Button>
+                </div>
+              </>
             )}
           </div>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-4">
-          {students.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">No students enrolled in this course.</div>
-          ) : (
-            <>
-              {/* Students List */}
-              <div className="space-y-3">
-                {students.map((student) => (
-                  <div key={student.id} className="border rounded-lg p-4 bg-white/50">
-                    <div className="flex items-center justify-between mb-3">
-                      <div>
-                        <h4 className="font-medium">
-                          {student.first_name} {student.last_name}
-                        </h4>
-                        <p className="text-sm text-gray-600">
-                          {student.student_id} • {student.email}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {getStatusIcon(attendance[student.id]?.status || "present")}
-                        <Badge className={getStatusColor(attendance[student.id]?.status || "present")}>
-                          {attendance[student.id]?.status || "present"}
-                        </Badge>
-                      </div>
-                    </div>
-
-                    {/* Status Buttons */}
-                    <div className="flex gap-2 mb-3">
-                      {["present", "absent", "late", "excused"].map((status) => (
-                        <Button
-                          key={status}
-                          variant={attendance[student.id]?.status === status ? "default" : "outline"}
-                          size="sm"
-                          onClick={() => updateAttendance(student.id, status as any)}
-                          className={
-                            attendance[student.id]?.status === status
-                              ? status === "present"
-                                ? "bg-green-600 hover:bg-green-700"
-                                : status === "absent"
-                                  ? "bg-red-600 hover:bg-red-700"
-                                  : status === "late"
-                                    ? "bg-yellow-600 hover:bg-yellow-700"
-                                    : "bg-blue-600 hover:bg-blue-700"
-                              : ""
-                          }
-                        >
-                          {getStatusIcon(status)}
-                          <span className="ml-1 capitalize">{status}</span>
-                        </Button>
-                      ))}
-                    </div>
-
-                    {/* Notes */}
-                    <div>
-                      <Label htmlFor={`notes-${student.id}`} className="text-xs text-gray-600">
-                        Notes (optional)
-                      </Label>
-                      <Textarea
-                        id={`notes-${student.id}`}
-                        placeholder="Add any notes about this student's attendance..."
-                        value={notes[student.id] || ""}
-                        onChange={(e) => updateNotes(student.id, e.target.value)}
-                        className="mt-1 text-sm"
-                        rows={2}
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Save Button */}
-              <div className="flex justify-end pt-4 border-t">
-                <Button onClick={saveAttendance} disabled={isSaving} className="bg-orange-600 hover:bg-orange-700">
-                  <Save className="mr-2 h-4 w-4" />
-                  {isSaving ? "Saving..." : hasExistingRecords ? "Update Attendance" : "Save Attendance"}
-                </Button>
-              </div>
-            </>
-          )}
-        </div>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+    </div>
   )
 }
